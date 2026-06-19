@@ -1,4 +1,4 @@
-# Grimverse
+# Grimverse Script
 
 Kumpulan script Lua untuk Roblox, dijalankan lewat executor menggunakan `loadstring`.
 
@@ -8,12 +8,13 @@ Kumpulan script Lua untuk Roblox, dijalankan lewat executor menggunakan `loadstr
 ```lua
 https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/ViolenceDistrict.lua
 ```
-> **TODO:** isi deskripsi di sini — game apa, fitur apa saja, ada UI atau tidak, dependency khusus (kalau ada).
+Violance Disctrict exploit script
 
-- Game: `<isi nama game>`
+- Game: **Violance District**
 - Fitur:
-  - `<fitur 1>`
-  - `<fitur 2>`
+  - Player, Killer, Generator, Names ESP
+  - Speed Boost
+  - Perfect Skill Check 
 
 ### Freecam.lua
 ```lua
@@ -21,7 +22,7 @@ https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/Freecam.lua
 ```
 Cinematic free camera standalone untuk spectating dan keperluan video, tanpa dependency eksternal.
 
-- Game: universal (tidak terikat game tertentu)
+- Game: **All Map**
 - Fitur:
   - Toggle kamera bebas dengan **Shift+L**, **F**, atau **DPadLeft** (gamepad)
   - Kontrol gerak kamera: keyboard (WASD/HJKL-style), mouse pan, scroll untuk FOV, gamepad thumbstick/trigger
