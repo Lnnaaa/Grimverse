@@ -33,8 +33,3 @@ Cinematic free camera standalone untuk spectating dan keperluan video, tanpa dep
   - Kill-switch internal: kalau script dijalankan ulang (re-`loadstring`), instance lama otomatis di-shutdown bersih (unbind semua koneksi/render step) sebelum instance baru jalan, mencegah dua Freecam aktif bersamaan
 
 ---
-
-## Catatan
-
-- Semua script ini dijalankan client-side via executor, bukan dimaksudkan untuk dipasang langsung sebagai LocalScript di Roblox Studio tanpa modifikasi (terutama soal asumsi environment seperti variabel `script`).
-- Pastikan domain `raw.githubusercontent.com` tidak diblok oleh whitelist HTTP executor kamu.
