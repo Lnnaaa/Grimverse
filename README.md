@@ -12,9 +12,29 @@ Violance Disctrict exploit script
 
 - Game: **Violance District**
 - Fitur:
-  - Player, Killer, Generator, Names ESP
-  - Speed Boost
-  - Perfect Skill Check 
+  - **UI & Sistem**
+    - Window draggable dengan 4 tab: Home, Player, Visuals, Configs
+    - Toggle UI via keybind custom (default `T`, bisa di-rebind)
+    - Notifikasi toast, cursor dot custom overlay
+    - Save/load/set-default/delete config profile ke file JSON lokal
+    - Self-cleanup otomatis saat script di-load ulang
+  - **Tab Home**
+    - Info akun (username, display name, UserId, account age, avatar)
+    - Live display Team/Health/Speed
+    - Prediksi "Next Killer" berdasarkan attribute game
+  - **Tab Player**
+    - Auto Skill Check
+    - Speed Boost (toggle + value custom)
+    - Override volume chase/heartbeat sound
+  - **Tab Visuals**
+    - Fullbright (override Lighting)
+    - ESP Killer / Survivor / Generator
+    - ESP Names (nametag + jarak), Gen Progress (persentase perbaikan)
+    - Color picker custom (HSV slider) untuk 6 state: Killer, Survivor, Generator, Hooked, Knocked, Injured
+  - **Tab Configs**
+    - Toggle notifikasi
+    - Manajemen profile config
+    - Rebind menu keybind
 
 ### Freecam.lua
 ```lua
