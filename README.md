@@ -36,7 +36,7 @@ Violance Disctrict exploit script
     - Manajemen profile config
     - Rebind menu keybind
 
-### Freecam.lua
+### Freecam.lua (PC Only)
 ```lua
 https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/Freecam.lua
 ```
