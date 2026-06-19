@@ -14,9 +14,6 @@ do
 
 	local existingMarker = CoreGui:FindFirstChild(MARKER_NAME)
 	if existingMarker then
-		local killFn = existingMarker:GetAttribute("KillRef")
-		-- Attributes cannot store functions, so the actual function lives in _G,
-		-- keyed by a unique id stored on the marker instance.
 		local killId = existingMarker:GetAttribute("KillId")
 		if killId and _G["__FreecamKill_" .. killId] then
 			local ok, err = pcall(_G["__FreecamKill_" .. killId])
@@ -48,71 +45,6 @@ local Settings = UserSettings()
 local GameSettings = Settings.GameSettings
 local Lighting = game:GetService("Lighting")
 local Debris = game:GetService('Debris')
-local HttpService = game:GetService("HttpService")
-
-------------------------------------------------------------------------
--- Config persistence (executor file I/O). Silently no-ops if writefile/
--- readfile/isfile are unavailable (e.g. running in Studio or a normal client).
-------------------------------------------------------------------------
-
-local CONFIG_PATH = "Freecam_Config.json"
-
-local Config = {}
-do
-	local hasFileIO = typeof(writefile) == "function"
-		and typeof(readfile) == "function"
-		and typeof(isfile) == "function"
-
-	local DEFAULTS = {
-		GuiKeybind = "P",
-		FreecamKeybind = "LeftShift+L",
-	}
-
-	function Config.Load()
-		if not hasFileIO then
-			return table.clone(DEFAULTS)
-		end
-
-		local ok, result = pcall(function()
-			if not isfile(CONFIG_PATH) then
-				return nil
-			end
-			local raw = readfile(CONFIG_PATH)
-			return HttpService:JSONDecode(raw)
-		end)
-
-		if not ok or typeof(result) ~= "table" then
-			return table.clone(DEFAULTS)
-		end
-
-		-- Fill in any missing keys with defaults (forward-compat if we add fields later)
-		for key, value in pairs(DEFAULTS) do
-			if result[key] == nil then
-				result[key] = value
-			end
-		end
-
-		return result
-	end
-
-	function Config.Save(data)
-		if not hasFileIO then
-			return false
-		end
-
-		local ok, err = pcall(function()
-			local encoded = HttpService:JSONEncode(data)
-			writefile(CONFIG_PATH, encoded)
-		end)
-
-		if not ok then
-			warn("[Freecam] Failed to save config: " .. tostring(err))
-			return false
-		end
-
-		return true
-	end
-end
 
 local LocalPlayer = Players.LocalPlayer
 if not LocalPlayer then
@@ -127,7 +59,6 @@ Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 		Camera = newCamera
 	end
 end)
-
 
 local FreecamDepthOfField = nil
 
@@ -208,37 +139,7 @@ end
 local FREECAM_ENABLED_ATTRIBUTE_NAME = "FreecamEnabled"
 local TOGGLE_INPUT_PRIORITY = Enum.ContextActionPriority.Low.Value
 local INPUT_PRIORITY = Enum.ContextActionPriority.High.Value
-
--- Keybind helpers: convert between "LeftShift+L" style strings (used for JSON
--- persistence and GUI display) and arrays of Enum.KeyCode (used by the macro
--- checker). The last entry in a macro array is treated as the "trigger" key;
--- earlier entries are modifier keys that must be held down.
-local function KeybindStringToArray(str)
-	local result = {}
-	for part in string.gmatch(str, "[^%+]+") do
-		local keyCode = Enum.KeyCode[part]
-		if keyCode then
-			table.insert(result, keyCode)
-		end
-	end
-	if #result == 0 then
-		return nil
-	end
-	return result
-end
-
-local function KeybindArrayToString(arr)
-	local parts = {}
-	for _, keyCode in ipairs(arr) do
-		table.insert(parts, keyCode.Name)
-	end
-	return table.concat(parts, "+")
-end
-
--- Mutable, rebindable at runtime. Defaults match the original hardcoded values.
-local FREECAM_MACRO_KB = { Enum.KeyCode.LeftShift, Enum.KeyCode.P }
-local GUI_TOGGLE_KB = { Enum.KeyCode.P }
-
+local FREECAM_MACRO_KB = { Enum.KeyCode.LeftShift, Enum.KeyCode.L }
 local FREECAM_TILT_RESET_KB = {
 	[Enum.KeyCode.Z] = true,
 	[Enum.KeyCode.C] = true,
@@ -1212,27 +1113,6 @@ end
 do
 	local enabled = false
 	local attributeConnection = nil
-	local guiEnabled = false
-
-	-- Load persisted keybinds (falls back to defaults if file I/O unavailable)
-	local loadedConfig = Config.Load()
-	do
-		local macroArr = KeybindStringToArray(loadedConfig.FreecamKeybind)
-		if macroArr then
-			FREECAM_MACRO_KB = macroArr
-		end
-		local guiArr = KeybindStringToArray(loadedConfig.GuiKeybind)
-		if guiArr then
-			GUI_TOGGLE_KB = guiArr
-		end
-	end
-
-	local function SaveKeybinds()
-		Config.Save({
-			GuiKeybind = KeybindArrayToString(GUI_TOGGLE_KB),
-			FreecamKeybind = KeybindArrayToString(FREECAM_MACRO_KB),
-		})
-	end
 
 	local function ToggleFreecam()
 		if enabled then
@@ -1255,9 +1135,6 @@ do
 		ToggleFreecam()
 	end
 
-	-- Forward declared so GUI toggle function can be referenced before defined
-	local ToggleGui
-
 	local function HandleActivationInput(action, state, input)
 		if state == Enum.UserInputState.Begin then
 			if input.KeyCode == FREECAM_MACRO_KB[#FREECAM_MACRO_KB] then
@@ -1272,49 +1149,13 @@ do
 		return Enum.ContextActionResult.Pass
 	end
 
-	local function HandleGuiToggleInput(action, state, input)
-		if state == Enum.UserInputState.Begin then
-			if input.KeyCode == GUI_TOGGLE_KB[#GUI_TOGGLE_KB] then
-				local isMacro = #GUI_TOGGLE_KB > 1
-				if isMacro then
-					for i = 1, #GUI_TOGGLE_KB - 1 do
-						if not UserInputService:IsKeyDown(GUI_TOGGLE_KB[i]) then
-							return Enum.ContextActionResult.Pass
-						end
-					end
-				end
-				if ToggleGui then
-					ToggleGui()
-				end
-			end
-		end
-		return Enum.ContextActionResult.Pass
-	end
-
-	local function RebindFreecamAction()
-		ContextActionService:UnbindAction("FreecamToggle")
-		ContextActionService:BindActionAtPriority(
-			"FreecamToggle",
-			HandleActivationInput,
-			false,
-			TOGGLE_INPUT_PRIORITY,
-			FREECAM_MACRO_KB[#FREECAM_MACRO_KB]
-		)
-	end
-
-	local function RebindGuiAction()
-		ContextActionService:UnbindAction("FreecamGuiToggle")
-		ContextActionService:BindActionAtPriority(
-			"FreecamGuiToggle",
-			HandleGuiToggleInput,
-			false,
-			TOGGLE_INPUT_PRIORITY,
-			GUI_TOGGLE_KB[#GUI_TOGGLE_KB]
-		)
-	end
-
-	RebindFreecamAction()
-	RebindGuiAction()
+	ContextActionService:BindActionAtPriority(
+		"FreecamToggle",
+		HandleActivationInput,
+		false,
+		TOGGLE_INPUT_PRIORITY,
+		FREECAM_MACRO_KB[#FREECAM_MACRO_KB]
+	)
 
 	ContextActionService:BindActionAtPriority("FreecamToggleDPAD", HandleActivationInput, false, TOGGLE_INPUT_PRIORITY, Enum.KeyCode.DPadLeft)
 
@@ -1342,168 +1183,6 @@ do
 		end)
 	end
 
-	------------------------------------------------------------------------
-	-- Simple GUI: toggle (P key) with two rebind buttons for the GUI
-	-- keybind itself and the freecam keybind. Listens for the next key
-	-- press after a rebind button is clicked, then saves to JSON.
-	------------------------------------------------------------------------
-
-	local screenGui = nil
-	local rebindListening = nil -- "gui" | "freecam" | nil
-	local rebindConnection = nil
-	local guiKeyLabel, freecamKeyLabel
-	local guiRebindButton, freecamRebindButton
-
-	local function BuildGui()
-		screenGui = Instance.new("ScreenGui")
-		screenGui.Name = "FreecamConfigGui"
-		screenGui.ResetOnSpawn = false
-		screenGui.IgnoreGuiInset = true
-		screenGui.DisplayOrder = 1000
-		screenGui.Enabled = false
-		screenGui.Parent = LocalPlayer:FindFirstChildOfClass("PlayerGui") or game:GetService("CoreGui")
-
-		local frame = Instance.new("Frame")
-		frame.Name = "MainFrame"
-		frame.Size = UDim2.new(0, 260, 0, 150)
-		frame.Position = UDim2.new(0, 20, 0.5, -75)
-		frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-		frame.BorderSizePixel = 0
-		frame.Active = true
-		frame.Draggable = true
-		frame.Parent = screenGui
-
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 8)
-		corner.Parent = frame
-
-		local title = Instance.new("TextLabel")
-		title.Name = "Title"
-		title.Size = UDim2.new(1, 0, 0, 30)
-		title.BackgroundTransparency = 1
-		title.Text = "Freecam Settings"
-		title.TextColor3 = Color3.fromRGB(255, 255, 255)
-		title.Font = Enum.Font.GothamBold
-		title.TextSize = 16
-		title.Parent = frame
-
-		local function MakeRow(yOffset, labelText)
-			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, -20, 0, 40)
-			row.Position = UDim2.new(0, 10, 0, yOffset)
-			row.BackgroundTransparency = 1
-			row.Parent = frame
-
-			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(0.5, 0, 1, 0)
-			label.BackgroundTransparency = 1
-			label.Text = labelText
-			label.TextColor3 = Color3.fromRGB(220, 220, 220)
-			label.Font = Enum.Font.Gotham
-			label.TextSize = 13
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Parent = row
-
-			local button = Instance.new("TextButton")
-			button.Size = UDim2.new(0.5, -5, 1, -8)
-			button.Position = UDim2.new(0.5, 5, 0, 4)
-			button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-			button.TextColor3 = Color3.fromRGB(255, 255, 255)
-			button.Font = Enum.Font.Gotham
-			button.TextSize = 12
-			button.AutoButtonColor = true
-			button.Parent = row
-
-			local btnCorner = Instance.new("UICorner")
-			btnCorner.CornerRadius = UDim.new(0, 6)
-			btnCorner.Parent = button
-
-			return button
-		end
-
-		guiRebindButton = MakeRow(40, "Toggle GUI:")
-		freecamRebindButton = MakeRow(85, "Toggle Freecam:")
-		guiKeyLabel = guiRebindButton
-		freecamKeyLabel = freecamRebindButton
-
-		local hint = Instance.new("TextLabel")
-		hint.Size = UDim2.new(1, -20, 0, 20)
-		hint.Position = UDim2.new(0, 10, 0, 125)
-		hint.BackgroundTransparency = 1
-		hint.Text = "Click a button, then press a key"
-		hint.TextColor3 = Color3.fromRGB(150, 150, 150)
-		hint.Font = Enum.Font.Gotham
-		hint.TextSize = 11
-		hint.Parent = frame
-
-		local function RefreshLabels()
-			guiRebindButton.Text = KeybindArrayToString(GUI_TOGGLE_KB)
-			freecamRebindButton.Text = KeybindArrayToString(FREECAM_MACRO_KB)
-		end
-		RefreshLabels()
-
-		local function StartListening(which, button)
-			if rebindConnection then
-				rebindConnection:Disconnect()
-				rebindConnection = nil
-			end
-			rebindListening = which
-			button.Text = "Press a key..."
-
-			rebindConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-				if input.UserInputType ~= Enum.UserInputType.Keyboard then
-					return
-				end
-				local keyCode = input.KeyCode
-				if keyCode == Enum.KeyCode.Unknown then
-					return
-				end
-
-				local shiftHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
-					or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
-
-				local newBind
-				if shiftHeld and keyCode ~= Enum.KeyCode.LeftShift and keyCode ~= Enum.KeyCode.RightShift then
-					newBind = { Enum.KeyCode.LeftShift, keyCode }
-				else
-					newBind = { keyCode }
-				end
-
-				if which == "gui" then
-					GUI_TOGGLE_KB = newBind
-					RebindGuiAction()
-				elseif which == "freecam" then
-					FREECAM_MACRO_KB = newBind
-					RebindFreecamAction()
-				end
-
-				SaveKeybinds()
-				RefreshLabels()
-
-				rebindListening = nil
-				if rebindConnection then
-					rebindConnection:Disconnect()
-					rebindConnection = nil
-				end
-			end)
-		end
-
-		guiRebindButton.MouseButton1Click:Connect(function()
-			StartListening("gui", guiRebindButton)
-		end)
-		freecamRebindButton.MouseButton1Click:Connect(function()
-			StartListening("freecam", freecamRebindButton)
-		end)
-	end
-
-	ToggleGui = function()
-		if not screenGui then
-			BuildGui()
-		end
-		guiEnabled = not guiEnabled
-		screenGui.Enabled = guiEnabled
-	end
-
 	-- FULL STOP: tears down everything this script instance owns.
 	-- Called either by this instance unbinding itself, or by a newer
 	-- duplicate instance forcing this one to die.
@@ -1521,21 +1200,10 @@ do
 
 		ContextActionService:UnbindAction("FreecamToggle")
 		ContextActionService:UnbindAction("FreecamToggleDPAD")
-		ContextActionService:UnbindAction("FreecamGuiToggle")
 
 		if attributeConnection then
 			attributeConnection:Disconnect()
 			attributeConnection = nil
-		end
-
-		if rebindConnection then
-			rebindConnection:Disconnect()
-			rebindConnection = nil
-		end
-
-		if screenGui then
-			screenGui:Destroy()
-			screenGui = nil
 		end
 	end
 
