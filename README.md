@@ -44,7 +44,7 @@ Cinematic free camera standalone untuk spectating dan keperluan video, tanpa dep
 
 - Game: **All Map**
 - Fitur:
-  - Toggle kamera bebas dengan **Shift+L**, **F**, atau **DPadLeft** (gamepad)
+  - Toggle kamera bebas dengan **Shift+L**, atau **DPadLeft** (gamepad)
   - Kontrol gerak kamera: keyboard (WASD/HJKL-style), mouse pan, scroll untuk FOV, gamepad thumbstick/trigger
   - Tilt/roll kamera dengan **Z/C** atau bumper gamepad, double-tap untuk reset tilt
   - Depth of Field manual via **Backslash** untuk toggle, **+/-** dan **Shift/Ctrl** untuk atur intensitas/fokus
