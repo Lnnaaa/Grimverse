@@ -6,7 +6,7 @@ Kumpulan script Lua untuk Roblox, dijalankan lewat executor menggunakan `loadstr
 
 ### ViolenceDistrict.lua
 ```lua
-https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/ViolenceDistrict.lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/ViolenceDistrict.lua"))()
 ```
 Violance Disctrict exploit script
 
@@ -36,9 +36,9 @@ Violance Disctrict exploit script
     - Manajemen profile config
     - Rebind menu keybind
 
-### Freecam.lua (PC Only)
+### Freecam.lua (Mobile and PC)
 ```lua
-https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/Freecam.lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lnnaaa/Grimverse/refs/heads/main/Freecam.lua"))()
 ```
 Cinematic free camera standalone untuk spectating dan keperluan video, tanpa dependency eksternal.
 
